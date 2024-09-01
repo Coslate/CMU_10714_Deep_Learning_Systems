@@ -1,0 +1,29 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../Machine_Learning"
+		},
+		{
+			"path": "../Data_Structures"
+		},
+		{
+			"path": "../Deep_Learning_Specialization"
+		},
+		{
+			"path": "../Linked_List"
+		},
+		{
+			"path": "../Adjacent_List"
+		},
+		{
+			"path": "../Min_Heap"
+		},
+		{
+			"path": "../Union_Find"
+		}
+	],
+	"settings": {}
+}
