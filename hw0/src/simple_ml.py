@@ -204,7 +204,35 @@ def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    num_iter = int(X.shape[0]/batch)
+    for i in range(num_iter):
+        tmpX = X[i*batch:(i+1)*batch, :]
+        tmpY = y[i*batch:(i+1)*batch]
+
+        #Z1 = RELU(XW1)
+        Z1 = np.maximum(tmpX@W1, 0)
+
+        #G2 = normalize(exp(Z1W1)) - Iy
+        softmax_Z2 = np.exp(Z1@W2)
+        softmax_Z2_sum = np.reshape(np.sum(softmax_Z2, axis=1), (softmax_Z2.shape[0], 1))
+        normalize_softmax_Z2 = softmax_Z2/softmax_Z2_sum
+        Iy = np.zeros((batch, W2.shape[1]), dtype=int)
+        Iy[np.arange(Iy.shape[0]), tmpY] = 1
+        G2 = normalize_softmax_Z2 - Iy
+
+        #G1 = 1{Z1>0}*(G2W2.T)
+        G1 = (Z1>0).astype(int)*(G2@W2.T)
+
+        #dW1 = 1/m*((X.T)G1)
+        dW1 = (1/batch)*(tmpX.T@G1)
+
+        #dW2 = 1/m*((Z1.T)G2)
+        dW2 = (1/batch)*(Z1.T@G2)
+
+        #Update parameters
+        W1 += -lr*dW1
+        W2 += -lr*dW2
+
     ### END YOUR CODE
 
 
