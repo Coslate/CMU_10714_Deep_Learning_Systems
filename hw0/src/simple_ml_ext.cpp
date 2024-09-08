@@ -3,10 +3,6 @@
 #include <cmath>
 #include <iostream>
 
-//to-be-deleted
-#include <ctime>
-#include <cstdlib>
-
 namespace py = pybind11;
 
 void printMatrix(const unsigned char* result, const int rows, const int cols, std::string name){
