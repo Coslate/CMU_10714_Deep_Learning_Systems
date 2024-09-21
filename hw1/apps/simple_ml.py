@@ -9,8 +9,63 @@ import sys
 sys.path.append("python/")
 import needle as ndl
 
+def readTrainXImage(image_filename):
+    with gzip.open(image_filename,'rb') as f:
+        # Read header
+        magic_number = struct.unpack('>I', f.read(4))[0]
+        if magic_number != 2051:
+            raise ValueError(f"Error: magic number of input image file: {image_filename} is wrong.")
+        num_of_images = struct.unpack('>I', f.read(4))[0]
+        rows = struct.unpack('>I', f.read(4))[0]
+        cols = struct.unpack('>I', f.read(4))[0]
 
-def parse_mnist(image_filesname, label_filename):
+        # Read data
+        # Pre-allocate the data array
+        X = np.zeros((num_of_images, rows*cols), dtype=np.float32)
+
+        # Read data for each image
+        for i in range(num_of_images):
+            #image_data = struct.unpack(f'>{rows * cols}B', f.read(rows * cols))
+            # Read the exact number of bytes expected for one image
+            image_bytes = f.read(rows * cols)
+            if image_bytes is None:
+                raise ValueError(f"Error: Read returned None for image {i}")
+        
+            # Debugging: Check if we got the correct number of bytes
+            if len(image_bytes) != rows * cols:
+                raise ValueError(f"Error reading image {i}: expected {rows * cols} bytes, got {len(image_bytes)} bytes.")            
+
+            image_data = struct.unpack(f'>{rows * cols}B', image_bytes)
+            X[i] = np.array(image_data, dtype=np.float32)
+            X[i] /= 255
+    return X, magic_number, num_of_images, rows, cols
+
+def readTrainYLabel(label_filename):
+    with gzip.open(label_filename,'rb') as f:
+        # Read header
+        magic_number = struct.unpack('>I', f.read(4))[0]
+        if magic_number != 2049:
+            raise ValueError(f"Error: magic number of input image file: {label_filename} is wrong.")
+        num_of_items = struct.unpack('>I', f.read(4))[0]
+
+        # Read data
+        # Pre-allocate the data array
+        y = np.zeros((num_of_items), dtype=np.uint8)
+
+        for i in range(num_of_items):
+            label_bytes = f.read(1)
+            if label_bytes is None:
+                raise ValueError(f"Error: Read returned None for item {i}")
+        
+            # Debugging: Check if we got the correct number of bytes
+            if len(label_bytes) != 1:
+                raise ValueError(f"Error reading item {i}: expected 1 bytes, got {len(label_bytes)} bytes.")            
+
+            label_data = struct.unpack(f'>B', label_bytes)
+            y[i] = np.array(label_data, dtype=np.uint8)[0]
+    return y, magic_number, num_of_items
+
+def parse_mnist(image_filename, label_filename):
     """Read an images and labels file in MNIST format.  See this page:
     http://yann.lecun.com/exdb/mnist/ for a description of the file format.
 
@@ -33,7 +88,25 @@ def parse_mnist(image_filesname, label_filename):
                 for MNIST will contain the values 0-9.
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    #raise NotImplementedError()
+
+    X, magic_number_trainX, num_of_images, rows, cols = readTrainXImage(image_filename)
+    y, magic_number_trainY, num_of_items = readTrainYLabel(label_filename) 
+
+    '''
+    print(f"magic_number_trainX = {magic_number_trainX}")
+    print(f"num_of_images = {num_of_images}")
+    print(f"rows = {rows}")
+    print(f"cols = {cols}")
+    print(f"X.dtype = {X.dtype}")
+    print(f"X.shape = {X.shape}")
+    print(f"X[2] = {X[2]}")
+    print(f"magic_number_trainY = {magic_number_trainY}")
+    print(f"num_of_items = {num_of_items}")
+    print(f"y[:10] = {y[:10]}")
+    print(f"y.shape = {y.shape}")
+    '''
+    return X, y    
     ### END YOUR SOLUTION
 
 
@@ -54,7 +127,31 @@ def softmax_loss(Z, y_one_hot):
         Average softmax loss over the sample. (ndl.Tensor[np.float32])
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    pos_part = ndl.log(ndl.summation(ndl.exp(Z), axes=(1,)))
+    neg_part = ndl.summation(ndl.multiply(Z, y_one_hot), axes=(1,))
+    neg_part_minus = ndl.mul_scalar(neg_part, -1)
+    pos_neg_part = ndl.add(pos_part, neg_part_minus)
+    pos_neg_sum = ndl.summation(pos_neg_part, axes=(0,))
+    pos_neg_mean = ndl.divide_scalar(pos_neg_sum, Z.shape[0])
+
+    '''
+    print(f"")
+    print(f"type(Z.shape[0]) = {type(Z.shape[0])}")
+    print(f"mxk = {Z.shape[0]}x{Z.shape[1]}")
+    print(f"Z.shape = {Z.shape}")
+    print(f"y_one_hot.shape = {y_one_hot.shape}")
+    print(f"pos_part.shape = {pos_part.shape}")
+    print(f"neg_part.shape = {neg_part.shape}")
+    print(f"neg_part_minus.shape = {neg_part_minus.shape}")
+    print(f"pos_neg_part.shape = {pos_neg_part.shape}")
+    print(f"pos_neg_sum.shape = {pos_neg_sum.shape}")
+    print(f"pos_neg_mean.shape = {pos_neg_mean.shape}")
+    print(f"type(pos_neg_mean) = {type(pos_neg_mean)}")
+    print(f"pos_neg_mean = {pos_neg_mean}")
+    '''
+
+    return pos_neg_mean
+    #raise NotImplementedError()
     ### END YOUR SOLUTION
 
 

@@ -948,6 +948,7 @@ def test_softmax_loss_ndl():
     y_one_hot = np.zeros((y.shape[0], 10))
     y_one_hot[np.arange(y.size), y] = 1
     y = ndl.Tensor(y_one_hot)
+    print(f"type(softmax_loss(Z, y).numpy()) = {type(softmax_loss(Z, y).numpy())}")
     np.testing.assert_allclose(
         softmax_loss(Z, y).numpy(), 2.3025850, rtol=1e-6, atol=1e-6
     )

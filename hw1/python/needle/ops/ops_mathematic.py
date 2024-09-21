@@ -276,8 +276,11 @@ class Summation(TensorOp):
         if self.axes == None:
             restore_shape = tuple(1 for x in a.shape)
         else:
-            for i in self.axes:
-                restore_shape.insert(i, 1)
+            if isinstance(self.axes, tuple):
+                for i in self.axes:
+                    restore_shape.insert(i, 1)
+            else:
+                restore_shape.insert(self.axes, 1)
 
         out_grad = out_grad.reshape(restore_shape)
         result = broadcast_to(out_grad, a.shape)
