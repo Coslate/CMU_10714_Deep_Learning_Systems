@@ -180,7 +180,38 @@ def nn_epoch(X, y, W1, W2, lr=0.1, batch=100):
     """
 
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    num_iter = int(X.shape[0]/batch)
+    for i in range(num_iter):
+        tmpX = X[i*batch:(i+1)*batch, :]
+        tmpY = y[i*batch:(i+1)*batch]
+        tmpX_tensor = ndl.Tensor(tmpX)
+        Iy = np.zeros((batch, W2.shape[1]), dtype=int)
+        Iy[np.arange(Iy.shape[0]), tmpY] = 1
+        Iy_tensor = ndl.Tensor(Iy)
+
+        #Z1 = RELU(XW1), mxd
+        node1 = ndl.matmul(tmpX_tensor, W1)
+        Z1 = ndl.relu(node1)
+
+        #Z2 = Z1W2
+        Z2 = ndl.matmul(Z1, W2)
+
+        #Calculate loss function
+        mean_loss = softmax_loss(Z2, Iy_tensor)
+
+        #Get gradient
+        mean_loss.backward()
+        W1_grad = W1.grad.numpy()
+        W2_grad = W2.grad.numpy()
+
+        W1_new = ndl.Tensor(W1.numpy()-lr*W1_grad)
+        W2_new = ndl.Tensor(W2.numpy()-lr*W2_grad)
+        W1 = W1_new
+        W2 = W2_new
+
+    return (W1, W2)
+
+    #raise NotImplementedError()
     ### END YOUR SOLUTION
 
 
