@@ -1,9 +1,3 @@
 [submodule "From_Course_Website/hw0"]
 	path = From_Course_Website/hw0
 	url = https://github.com/dlsyscourse/hw0.git
-[submodule "lecture5"]
-	path = lecture5
-	url = https://github.com/dlsyscourse/lecture5.git
-[submodule "lecture8"]
-	path = lecture8
-	url = https://github.com/dlsyscourse/lecture8.git
