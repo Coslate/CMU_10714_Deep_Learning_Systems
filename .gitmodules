@@ -4,3 +4,6 @@
 [submodule "lecture5"]
 	path = lecture5
 	url = https://github.com/dlsyscourse/lecture5.git
+[submodule "lecture8"]
+	path = lecture8
+	url = https://github.com/dlsyscourse/lecture8.git
