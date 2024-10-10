@@ -22,7 +22,10 @@ def kaiming_uniform(fan_in, fan_out, nonlinearity="relu", **kwargs):
     ### BEGIN YOUR SOLUTION
     gain = math.sqrt(2)
     bound = gain*(math.sqrt(3/fan_in))
-    shape = (fan_in, fan_out)
+    if fan_out==None:
+        shape = (fan_in,)
+    else:
+        shape = (fan_in, fan_out)
     return rand(*shape, low=-bound, high=bound)
     ### END YOUR SOLUTION
 

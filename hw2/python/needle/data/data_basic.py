@@ -51,6 +51,7 @@ class DataLoader:
         shuffle: bool = False,
     ):
 
+        self.batch_idx = 0
         self.dataset = dataset
         self.shuffle = shuffle
         self.batch_size = batch_size
@@ -60,12 +61,51 @@ class DataLoader:
 
     def __iter__(self):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.shuffle:
+            self.ordering = np.random.permutation(len(self.dataset))
+        else:
+            self.ordering = np.arange(len(self.dataset))
+
+        self.batches_order = np.array_split(self.ordering, 
+                                            range(self.batch_size, len(self.dataset), self.batch_size))
+
+        self.batch_idx = 0
         ### END YOUR SOLUTION
         return self
 
     def __next__(self):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.batch_idx >= len(self.batches_order):
+            raise StopIteration
+
+        current_batch = [self.dataset[x] for x in self.batches_order[self.batch_idx]]
+        current_batch_tensor = [
+            tuple(item for item in sample)
+            if len(sample) > 1 else sample
+            for sample in current_batch
+        ]
+        final_output = [] #n-tuple output
+        item_list = {}
+        one_list = []
+
+        for sample in current_batch_tensor:
+            if isinstance(sample, tuple):
+                for id, item in enumerate(sample):
+                    if id not in item_list:
+                        item_list[id] = [item]
+                    else:
+                        item_list[id].append(item)
+            else:
+                one_list.append(sample)
+
+        if len(one_list) == 0:
+            for key, ele in item_list.items():
+                final_output.append(Tensor(np.array(ele)))
+        else:
+            final_output.append(Tensor(np.array(one_list)))
+        
+        self.batch_idx += 1
+        #tensor_batch = Tensor(current_batch)
+        return tuple(final_output)
         ### END YOUR SOLUTION
 

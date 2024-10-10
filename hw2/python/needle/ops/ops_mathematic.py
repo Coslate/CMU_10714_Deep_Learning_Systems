@@ -390,11 +390,11 @@ class ReLU(TensorOp):
 
         for i in range(a.shape[0]):
             for j in range(a.shape[1]):
-                if a.cached_data[i][j] >0:
+                if a.cached_data[i][j] > 0:
                     grad_relu[i][j] = 1
-        grad_relu = Tensor(grad_relu)
-
-        return multiply(out_grad, grad_relu)
+        grad_relu = Tensor(grad_relu, dtype=a.dtype)
+        res = multiply(out_grad, grad_relu)
+        return res
         #raise NotImplementedError()
         ### END YOUR SOLUTION
 

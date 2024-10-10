@@ -88,26 +88,44 @@ class Linear(Module):
         self.out_features = out_features
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.weight = Parameter(init.kaiming_uniform(fan_in=in_features, fan_out=out_features, dtype=dtype))
+        #self.weight = Parameter(self.weight, dtype=dtype)
+        if bias:
+            self.bias = Parameter(init.kaiming_uniform(fan_in=out_features, fan_out=1, dtype=dtype).reshape((1, -1)))
+            '''
+            self.bias = init.kaiming_uniform(fan_in=out_features, fan_out=1, dtype=dtype)
+            self.bias = ops.reshape(self.bias, (1, -1))
+            self.bias = Parameter(self.bias, dtype=dtype)
+            '''
+        else:
+            self.bias = None
         ### END YOUR SOLUTION
 
     def forward(self, X: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        out = ops.matmul(X, self.weight)
+        #X_reshape = ops.reshape(X, (X.shape[0], -1))
+        #out = ops.matmul(X_reshape, self.weight)
+        if self.bias is not None:
+            bias_broad = ops.broadcast_to(self.bias, shape=out.shape)
+            out_res = ops.add(out, bias_broad)
+            return out_res
+        else:
+            return out
         ### END YOUR SOLUTION
 
 
 class Flatten(Module):
     def forward(self, X):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return ops.reshape(X, (X.shape[0], -1))
         ### END YOUR SOLUTION
 
 
 class ReLU(Module):
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return ops.relu(x)
         ### END YOUR SOLUTION
 
 class Sequential(Module):
@@ -117,14 +135,26 @@ class Sequential(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        for module in self.modules:
+            x = module(x)
+
+        return x
         ### END YOUR SOLUTION
 
 
 class SoftmaxLoss(Module):
     def forward(self, logits: Tensor, y: Tensor):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        k = logits.shape[1]
+        n = logits.shape[0]
+        logsumexp = ops.logsumexp(logits, axes=1)
+        y_one_hot = init.one_hot(k, y, device=None, dtype="float32", requires_grad=False)
+        neg_part = ops.summation(ops.multiply(logits, y_one_hot), axes=(1,))
+        neg_part_minus = ops.mul_scalar(neg_part, -1)
+        pos_neg_part = ops.add(logsumexp, neg_part_minus)
+        pos_neg_sum = ops.summation(pos_neg_part, axes=(0,))
+        pos_neg_mean = ops.divide_scalar(pos_neg_sum, np.float32(n))
+        return pos_neg_mean
         ### END YOUR SOLUTION
 
 
@@ -135,12 +165,56 @@ class BatchNorm1d(Module):
         self.eps = eps
         self.momentum = momentum
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.weight = init.ones(*(1, dim))
+        self.weight = Parameter(self.weight, dtype=dtype)
+        self.bias   = init.zeros(*(1, dim))
+        self.bias   = Parameter(self.bias, dtype=dtype)
+        self.running_mean   = init.zeros(*(dim,)).data
+        self.running_var    = init.ones(*(dim,)).data
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        n, d = x.shape
+        restore_shape = ops.restoreShape(x.shape, input_axes=(0,))
+
+        if self.training is False:
+            ux            = ops.reshape(self.running_mean, restore_shape)
+            ux_broad      = ops.broadcast_to(ux, x.shape)
+            x_minus_ux    = x - ux_broad
+            var_resh      = ops.reshape(self.running_var, restore_shape)
+            var_broad     = ops.broadcast_to(var_resh, x.shape)
+            var_eps       = ops.add_scalar(var_broad, self.eps)
+            var_sqrt      = ops.power_scalar(var_eps, 0.5)
+            x_div_var     = ops.divide(x_minus_ux, var_sqrt)
+            weight_broad  = ops.broadcast_to(self.weight, x_div_var.shape)
+            bias_broad    = ops.broadcast_to(self.bias, x_div_var.shape)
+            wx            = ops.multiply(weight_broad, x_div_var)
+            wx_b          = ops.add(wx, bias_broad)
+        else:
+            usum          = ops.summation(x, axes=(0,))
+            ux_div        = ops.divide_scalar(usum, n)
+            ux            = ops.reshape(ux_div, restore_shape)
+            ux_broad      = ops.broadcast_to(ux, x.shape)
+            x_minus_ux    = x - ux_broad
+            x_minus_sq    = ops.multiply(x_minus_ux, x_minus_ux)
+            var_sum       = ops.summation(x_minus_sq, axes=(0,))
+            var_div       = ops.divide_scalar(var_sum, n)
+            var_resh      = ops.reshape(var_div, restore_shape)
+            var_broad     = ops.broadcast_to(var_resh, x.shape)
+            var_eps       = ops.add_scalar(var_broad, self.eps)
+            var_sqrt      = ops.power_scalar(var_eps, 0.5)
+            x_div_var     = ops.divide(x_minus_ux, var_sqrt)
+            weight_broad  = ops.broadcast_to(self.weight, x_div_var.shape)
+            bias_broad    = ops.broadcast_to(self.bias, x_div_var.shape)
+            wx            = ops.multiply(weight_broad, x_div_var)
+            wx_b          = ops.add(wx, bias_broad)
+
+            self.running_mean = self.running_mean*(1-self.momentum) + ux.data * self.momentum
+            self.running_var  = self.running_var*(1-self.momentum) + var_resh.data*self.momentum
+            self.running_mean = self.running_mean.reshape((self.dim,))
+            self.running_var  = self.running_var.reshape((self.dim,))
+        return wx_b
         ### END YOUR SOLUTION
 
 
@@ -151,12 +225,34 @@ class LayerNorm1d(Module):
         self.dim = dim
         self.eps = eps
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.weight = init.ones(*(1, dim))
+        self.weight = Parameter(self.weight, dtype=dtype)
+        self.bias   = init.zeros(*(1, dim))
+        self.bias   = Parameter(self.bias, dtype=dtype)
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        n, d = x.shape
+        restore_shape = ops.restoreShape(x.shape, input_axes=(1,))
+        usum          = ops.summation(x, axes=(1,))
+        ux_div        = ops.divide_scalar(usum, d)
+        ux            = ops.reshape(ux_div, restore_shape)
+        ux_broad      = ops.broadcast_to(ux, x.shape)
+        x_minus_ux    = x - ux_broad
+        x_minus_sq   = ops.multiply(x_minus_ux, x_minus_ux)
+        var_sum      = ops.summation(x_minus_sq, axes=(1,))
+        var_div      = ops.divide_scalar(var_sum, d)
+        var_resh     = ops.reshape(var_div, restore_shape)
+        var_broad    = ops.broadcast_to(var_resh, x.shape)
+        var_eps      = ops.add_scalar(var_broad, self.eps)
+        var_sqrt     = ops.power_scalar(var_eps, 0.5)
+        x_div_var    = ops.divide(x_minus_ux, var_sqrt)
+        weight_broad = ops.broadcast_to(self.weight, x_div_var.shape)
+        bias_broad   = ops.broadcast_to(self.bias, x_div_var.shape)
+        wx           = ops.multiply(weight_broad, x_div_var)
+        wx_b         = ops.add(wx, bias_broad)
+        return wx_b
         ### END YOUR SOLUTION
 
 
@@ -167,7 +263,11 @@ class Dropout(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.training is False:
+            return x
+        else:
+            mask = init.randb(*x.shape, p=1-self.p)
+            return ops.multiply(ops.mul_scalar(x, 1/(1-self.p)), mask)
         ### END YOUR SOLUTION
 
 
@@ -178,5 +278,5 @@ class Residual(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return ops.add(self.fn(x), x)
         ### END YOUR SOLUTION
