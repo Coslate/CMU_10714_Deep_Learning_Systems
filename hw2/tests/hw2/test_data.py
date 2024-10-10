@@ -10844,7 +10844,6 @@ def test_dataloader_mnist():
     mnist_train_dataset = ndl.data.MNISTDataset(
         "data/train-images-idx3-ubyte.gz", "data/train-labels-idx1-ubyte.gz"
     )
-
     mnist_train_dataloader = ndl.data.DataLoader(
         dataset=mnist_train_dataset, batch_size=batch_size, shuffle=False
     )
