@@ -306,12 +306,24 @@ class MatMul(TensorOp):
         a, b = node.inputs
         da = matmul(out_grad, transpose(b))
         db = matmul(transpose(a), out_grad)
+        '''
+        print(f"")
+        print(f"-----------")
+        print(f"a.shape = {a.shape}")
+        print(f"b.shape = {b.shape}")
+        print(f"da.shape = {da.shape}")
+        print(f"db.shape = {db.shape}")
+        print(f"out_grad.shape = {out_grad.shape}")
+        print(f"-----------")
+        '''
 
         if da.shape != a.shape:
             da = setToOriginalShape(a, da)
+            #print(f"after, da.shape = {da.shape}")
 
         if db.shape != b.shape:
             db = setToOriginalShape(b, db)
+            #print(f"after, db.shape = {db.shape}")
 
         return da, db
         #raise NotImplementedError()
