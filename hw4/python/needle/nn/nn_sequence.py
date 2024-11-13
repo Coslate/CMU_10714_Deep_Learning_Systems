@@ -6,6 +6,7 @@ from needle import ops
 import needle.init as init
 import numpy as np
 from .nn_basic import Parameter, Module
+import needle.nn as nn
 
 
 class Sigmoid(Module):
@@ -14,7 +15,7 @@ class Sigmoid(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return ops.power_scalar((1+ops.exp(-x)), -1)
         ### END YOUR SOLUTION
 
 class RNNCell(Module):
@@ -38,7 +39,30 @@ class RNNCell(Module):
         """
         super().__init__()
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.device = device
+        self.dtype = dtype
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.bias = bias
+        self.nonlinearity = nonlinearity
+
+        bound = np.sqrt(1/hidden_size)
+        self.W_ih = Parameter(init.rand(*(input_size, hidden_size), low=-bound, high=bound, dtype=dtype, device=device, requires_grad=True))
+        self.W_hh = Parameter(init.rand(*(hidden_size, hidden_size), low=-bound, high=bound, dtype=dtype, device=device, requires_grad=True))
+        if bias:
+            self.bias_ih = Parameter(init.rand(*(hidden_size, ), low=-bound, high=bound, dtype=dtype, device=device, requires_grad=True))
+            self.bias_hh = Parameter(init.rand(*(hidden_size, ), low=-bound, high=bound, dtype=dtype, device=device, requires_grad=True))
+        else:
+            self.bias_ih = None
+            self.bias_hh = None
+        
+        if nonlinearity == 'tanh':
+            self.nonlinear_func = nn.Tanh()
+        elif nonlinearity == 'relu':
+            self.nonlinear_func = nn.ReLU()
+        else:
+            raise ValueError("Do not support nonlinearity other than 'tanh' or 'relu' function.")
+
         ### END YOUR SOLUTION
 
     def forward(self, X, h=None):
@@ -53,7 +77,19 @@ class RNNCell(Module):
             for each element in the batch.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        bs, input_size = X.shape
+
+        if h is None:
+            h = init.zeros(*(bs, self.hidden_size), device=self.device, dtype=self.dtype, requires_grad=False)
+        
+        if self.bias:
+            comb_t = (h @ self.W_hh) + (X @ self.W_ih) + self.bias_ih.reshape((1, self.hidden_size)).broadcast_to((bs, self.hidden_size)) + self.bias_hh.reshape((1, self.hidden_size)).broadcast_to((bs, self.hidden_size))
+            h_t = self.nonlinear_func(comb_t)
+        else:
+            comb_t = (h @ self.W_hh) + (X @ self.W_ih)
+            h_t = self.nonlinear_func(comb_t)
+
+        return h_t
         ### END YOUR SOLUTION
 
 
@@ -82,7 +118,18 @@ class RNN(Module):
         """
         super().__init__()
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.bias = bias
+        self.nonlinearity = nonlinearity
+        self.device = device
+        self.dtype = dtype
+
+        self.rnn_cells = []
+        self.rnn_cells.append(RNNCell(input_size, hidden_size, bias, nonlinearity, device, dtype))
+        for i in range(num_layers-1): # upper layers
+            self.rnn_cells.append(RNNCell(hidden_size, hidden_size, bias, nonlinearity, device, dtype))
         ### END YOUR SOLUTION
 
     def forward(self, X, h0=None):
@@ -98,7 +145,31 @@ class RNN(Module):
         h_n of shape (num_layers, bs, hidden_size) containing the final hidden state for each element in the batch.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        seq_len, bs, input_size = X.shape
+
+        if h0 is None:
+            h0 = [None for _ in range(self.num_layers)]
+        else:
+            h0 = list(ops.split(h0, axis=0)) #h0 = [h0_layer1, h0_layer2, ..., h0_layerN]
+
+        h_list = [hidden_st for hidden_st in h0]
+        input_seq_X = list(ops.split(X, axis=0)) #input_seq_X = [X0, X1, X2, ..., Xt]
+        out_list = [] #output result for seq_len sequences
+
+        for t in range(seq_len):
+            h_applied_layer = [hidden_st for hidden_st in h_list]
+            input_X = input_seq_X[t]
+            for layer in range(self.num_layers):
+                h_out_layer = self.rnn_cells[layer](input_X, h_applied_layer[layer])
+                input_X = h_out_layer # next layer input
+                h_list[layer] = h_out_layer # next sequence hidden state input
+
+            out_list.append(input_X)
+        
+        out_hidden_st = ops.stack(out_list, axis=0)
+        h_n = ops.stack(h_list, axis=0)
+
+        return out_hidden_st, h_n
         ### END YOUR SOLUTION
 
 
@@ -122,7 +193,27 @@ class LSTMCell(Module):
         """
         super().__init__()
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.input_size  = input_size
+        self.hidden_size = hidden_size
+        self.bias   = bias
+        self.device = device
+        self.dtype  = dtype
+
+        bound = np.sqrt(1/hidden_size)
+        self.W_ih = Parameter(init.rand(*(input_size, 4*hidden_size), low=-bound, high=bound, dtype=dtype, device=device, requires_grad=True))
+        self.W_hh = Parameter(init.rand(*(hidden_size, 4*hidden_size), low=-bound, high=bound, dtype=dtype, device=device, requires_grad=True))
+        if bias:
+            self.bias_ih = Parameter(init.rand(*(4*hidden_size, ), low=-bound, high=bound, dtype=dtype, device=device, requires_grad=True))
+            self.bias_hh = Parameter(init.rand(*(4*hidden_size, ), low=-bound, high=bound, dtype=dtype, device=device, requires_grad=True))
+        else:
+            self.bias_ih = None
+            self.bias_hh = None
+
+        self.sigmoid_i = Sigmoid()
+        self.sigmoid_f = Sigmoid()
+        self.tanh_g    = nn.Tanh()
+        self.sigmoid_o = Sigmoid()
+        self.tanh_o    = nn.Tanh()
         ### END YOUR SOLUTION
 
 
@@ -143,7 +234,37 @@ class LSTMCell(Module):
             element in the batch.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        bs, input_size = X.shape
+
+        if h is None:
+            h0 = init.zeros(*(bs, self.hidden_size), device=self.device, dtype=self.dtype, requires_grad=False)
+            c0 = init.zeros(*(bs, self.hidden_size), device=self.device, dtype=self.dtype, requires_grad=False)
+        else:
+            h0, c0 = h
+            if h0 is None:
+                h0 = init.zeros(*(bs, self.hidden_size), device=self.device, dtype=self.dtype, requires_grad=False)
+            if c0 is None:
+                c0 = init.zeros(*(bs, self.hidden_size), device=self.device, dtype=self.dtype, requires_grad=False)
+
+        if self.bias:
+            comb_t = (h0 @ self.W_hh) + (X @ self.W_ih) + self.bias_ih.reshape((1, 4*self.hidden_size)).broadcast_to((bs, 4*self.hidden_size)) + self.bias_hh.reshape((1, 4*self.hidden_size)).broadcast_to((bs, 4*self.hidden_size))
+        else:
+            comb_t = (h0 @ self.W_hh) + (X @ self.W_ih)
+
+        comb_t_split = ops.split(comb_t, axis=1) #[bs x 1, bs x 2, ..., bs x hidden_size,..., bs x (hidden_size*2), ..., bs x (hidden_size*4)]
+        i_ = ops.stack([comb_t_split[i] for i in range(0                 , self.hidden_size)], axis=1)
+        f_ = ops.stack([comb_t_split[i] for i in range(self.hidden_size  , self.hidden_size*2)], axis=1)
+        g_ = ops.stack([comb_t_split[i] for i in range(self.hidden_size*2, self.hidden_size*3)], axis=1)
+        o_ = ops.stack([comb_t_split[i] for i in range(self.hidden_size*3, self.hidden_size*4)], axis=1)
+        i = self.sigmoid_i(i_)
+        f = self.sigmoid_f(f_)
+        g = self.tanh_g(g_)
+        o = self.sigmoid_o(o_)
+
+        c_out = f*c0 + i*g
+        h_out = o*self.tanh_o(c_out)
+
+        return h_out, c_out
         ### END YOUR SOLUTION
 
 
@@ -171,7 +292,19 @@ class LSTM(Module):
             of shape (4*hidden_size,).
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.bias = bias
+        self.device = device
+        self.dtype = dtype
+
+        self.lstm_cells = []
+        self.lstm_cells.append(LSTMCell(input_size, hidden_size, bias, device, dtype))
+        for i in range(num_layers-1): # upper layers
+            self.lstm_cells.append(LSTMCell(hidden_size, hidden_size, bias, device, dtype))
+
+
         ### END YOUR SOLUTION
 
     def forward(self, X, h=None):
@@ -192,7 +325,45 @@ class LSTM(Module):
             h_n of shape (num_layers, bs, hidden_size) containing the final hidden cell state for each element in the batch.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        seq_len, bs, input_size = X.shape
+
+        if h is None:
+            h0 = [None for _ in range(self.num_layers)]
+            c0 = [None for _ in range(self.num_layers)]
+        else:
+            h0, c0 = h
+            if h0 is None:
+                h0 = [None for _ in range(self.num_layers)]
+            else:
+                h0 = list(ops.split(h0, axis=0)) #h0 = [h0_layer1, h0_layer2, ..., h0_layerN]
+
+            if c0 is None:
+                c0 = [None for _ in range(self.num_layers)]
+            else:
+                c0 = list(ops.split(c0, axis=0)) #c0 = [c0_layer1, c0_layer2, ..., c0_layerN]
+
+        h_list = [hidden_st for hidden_st in h0]
+        c_list = [hidden_st for hidden_st in c0]
+        input_seq_X = list(ops.split(X, axis=0)) #input_seq_X = [X0, X1, X2, ..., Xt]
+        out_list = [] #output result for seq_len sequences
+
+        for t in range(seq_len):
+            h_applied_layer = [hidden_st for hidden_st in h_list]
+            c_applied_layer = [hidden_st for hidden_st in c_list]
+            input_X = input_seq_X[t]
+            for layer in range(self.num_layers):
+                h_out_layer, c_out_layer = self.lstm_cells[layer](input_X, (h_applied_layer[layer], c_applied_layer[layer]))
+                input_X = h_out_layer # next layer input
+                h_list[layer] = h_out_layer # next sequence hidden state input
+                c_list[layer] = c_out_layer # next sequence hidden state input
+
+            out_list.append(input_X)
+        
+        out_hidden_st = ops.stack(out_list, axis=0)
+        h_n = ops.stack(h_list, axis=0)
+        c_n = ops.stack(c_list, axis=0)
+
+        return out_hidden_st, (h_n, c_n)
         ### END YOUR SOLUTION
 
 class Embedding(Module):

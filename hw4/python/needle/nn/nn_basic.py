@@ -137,6 +137,12 @@ class Flatten(Module):
         return out
         ### END YOUR SOLUTION
 
+class Tanh(Module):
+    def forward(self, x: Tensor) -> Tensor:
+        ### BEGIN YOUR SOLUTION
+        return ops.tanh(x)
+        ### END YOUR SOLUTION
+
 
 class ReLU(Module):
     def forward(self, x: Tensor) -> Tensor:
