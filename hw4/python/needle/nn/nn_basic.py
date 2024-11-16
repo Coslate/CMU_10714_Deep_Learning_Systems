@@ -266,16 +266,16 @@ class LayerNorm1d(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        n, d = x.shape
+        #n, d = x.shape
         restore_shape = ops.restoreShape(x.shape, input_axes=(1,))
         usum          = ops.summation(x, axes=(1,))
-        ux_div        = ops.divide_scalar(usum, d)
+        ux_div        = ops.divide_scalar(usum, self.dim)
         ux            = ops.reshape(ux_div, restore_shape)
         ux_broad      = ops.broadcast_to(ux, x.shape)
         x_minus_ux    = x - ux_broad
         x_minus_sq   = ops.multiply(x_minus_ux, x_minus_ux)
         var_sum      = ops.summation(x_minus_sq, axes=(1,))
-        var_div      = ops.divide_scalar(var_sum, d)
+        var_div      = ops.divide_scalar(var_sum, self.dim)
         var_resh     = ops.reshape(var_div, restore_shape)
         var_broad    = ops.broadcast_to(var_resh, x.shape)
         var_eps      = ops.add_scalar(var_broad, self.eps)
@@ -299,7 +299,7 @@ class Dropout(Module):
         if self.training is False:
             return x
         else:
-            mask = init.randb(*x.shape, p=1-self.p)
+            mask = init.randb(*x.shape, p=1-self.p, device=x.device, dtype=x.dtype)
             return ops.multiply(ops.mul_scalar(x, 1/(1-self.p)), mask)
         ### END YOUR SOLUTION
 

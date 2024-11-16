@@ -14,6 +14,27 @@ from apps.models import *
 import time
 device = ndl.cpu()
 
+import psutil
+import os
+
+def print_memory_usage(message=""):
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    mem_usage = mem_info.rss / (1024 ** 2)
+    print(f"[{message}] Memory usage: {mem_usage:.2f} MB")  # RSS: Resident Set Size
+    return mem_usage
+
+import threading
+import os
+import time
+
+def monitor_memory_usage():
+    process = psutil.Process(os.getpid())
+    while True:
+        mem_info = process.memory_info()
+        print(f"Memory usage: {mem_info.rss / (1024 ** 2):.2f} MB")
+        time.sleep(0.05)  # Adjust the sleep interval as needed
+
 def parse_mnist(image_filesname, label_filename):
     """Read an images and labels file in MNIST format.  See this page:
     http://yann.lecun.com/exdb/mnist/ for a description of the file format.
@@ -180,7 +201,59 @@ def epoch_general_ptb(data, model, seq_len=40, loss_fn=nn.SoftmaxLoss(), opt=Non
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    nbatch, batch_size = data.shape
+    avg_loss = []
+    avg_acc  = []
+    sample_num = 0
+    if opt is not None:
+        # Training Mode
+        model.train()
+        h = None
+        for i in range(0, nbatch-1, seq_len):
+            opt.reset_grad()
+            batch_x, batch_y = ndl.data.get_batch(batches=data, i=i, bptt=seq_len, device=device, dtype=dtype)
+            out_y, h = model(batch_x, h)
+
+            # h is not updated grad in further sequence for saving memory
+            if isinstance(h, tuple):
+                hi_det_list = []
+                for hi in h:
+                    hi_det_list.append(hi.detach())
+                h = tuple([_ for _ in hi_det_list])
+            else:
+                h = h.detach()
+
+            loss = loss_fn(out_y, batch_y)
+            loss.backward()
+            opt.step()
+            avg_loss.append(np.float32(loss.numpy())*batch_y.shape[0])
+            avg_acc.append(np.float32(np.sum(batch_y.numpy() == out_y.numpy().argmax(axis=1))))
+            sample_num += batch_y.shape[0]
+    else:
+        # Testing Mode
+        model.eval()
+        h = None
+        for i in range(0, nbatch-1, seq_len):
+            batch_x, batch_y = ndl.data.get_batch(batches=data, i=i, bptt=seq_len, device=device, dtype=dtype)
+            out_y, h = model(batch_x, h)
+
+            # h is not updated grad in further sequence for saving memory
+            if isinstance(h, tuple):
+                hi_det_list = []
+                for hi in h:
+                    hi_det_list.append(hi.detach())
+                h = tuple([_ for _ in hi_det_list])
+            else:
+                h = h.detach()
+
+            loss = loss_fn(out_y, batch_y)
+            avg_loss.append(np.float32(loss.numpy()*batch_y.shape[0]))
+            avg_acc.append(np.float32(np.sum(batch_y.numpy() == out_y.numpy().argmax(axis=1))))
+            sample_num += batch_y.shape[0]
+
+    avg_loss_val = np.sum(avg_loss)/sample_num
+    avg_acc_val  = np.sum(avg_acc)/sample_num
+    return avg_acc_val, avg_loss_val
     ### END YOUR SOLUTION
 
 
@@ -207,7 +280,15 @@ def train_ptb(model, data, seq_len=40, n_epochs=1, optimizer=ndl.optim.SGD,
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    opt = optimizer(model.parameters(), lr=lr, weight_decay=weight_decay)
+
+    # Training
+    #monitor_thread = threading.Thread(target=monitor_memory_usage, daemon=True)
+    #monitor_thread.start()
+    for loop_i in range(n_epochs):
+        avg_acc_train, avg_loss_train = epoch_general_ptb(data=data, model=model, seq_len=seq_len, loss_fn=loss_fn(), opt=opt,
+                                                          clip=clip, device=device, dtype=dtype)
+    return avg_acc_train, avg_loss_train
     ### END YOUR SOLUTION
 
 def evaluate_ptb(model, data, seq_len=40, loss_fn=nn.SoftmaxLoss,
@@ -227,7 +308,9 @@ def evaluate_ptb(model, data, seq_len=40, loss_fn=nn.SoftmaxLoss,
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    avg_acc_test, avg_loss_test = epoch_general_ptb(data=data, model=model, seq_len=seq_len, loss_fn=loss_fn(), opt=None,
+                                                    clip=None, device=device, dtype=dtype)
+    return avg_acc_test, avg_loss_test
     ### END YOUR SOLUTION
 
 ### CODE BELOW IS FOR ILLUSTRATION, YOU DO NOT NEED TO EDIT

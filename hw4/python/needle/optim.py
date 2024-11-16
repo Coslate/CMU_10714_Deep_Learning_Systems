@@ -26,13 +26,13 @@ class SGD(Optimizer):
     def step(self):
         ### BEGIN YOUR SOLUTION
         for id, w in enumerate(self.params):
-            gt = ndl.Tensor(w.grad.data, dtype=w.data.dtype) + self.weight_decay*w.data
+            gt = ndl.Tensor(w.grad.detach(), dtype=w.dtype) + self.weight_decay*w.detach()
             if id not in self.u:
-                self.u[id] = ndl.Tensor(0, dtype=w.data.dtype)
+                self.u[id] = ndl.init.zeros(*w.shape, device=w.device, dtype=w.dtype)
 
-            self.u[id] = self.momentum*self.u[id] + (1-self.momentum)*gt
+            self.u[id] = self.momentum*self.u[id] + (1-self.momentum)*gt.detach()
             gt = self.u[id]
-            w.data = w.data - self.lr*gt
+            w.data = w.data - self.lr*gt.detach()
         ### END YOUR SOLUTION
 
     def clip_grad_norm(self, max_norm=0.25):
@@ -40,7 +40,21 @@ class SGD(Optimizer):
         Clips gradient norm of parameters.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        # Calculate the total norm of gradients (L2 norm)
+        total_norm = 0.0
+        for param in self.params:
+            if param.grad is not None:
+                grad = param.grad.detach().numpy().reshape(-1)
+                grad_norm = np.sum([g ** 2 for g in grad]) ** 0.5
+                total_norm += grad_norm
+
+        # Calculate the clipping coefficient
+        clip_coef = max_norm / (total_norm + 1e-6)  # Adding a small epsilon to avoid division by zero                
+        # Clip the gradients if the total norm exceeds max_norm
+        if clip_coef < 1:
+            for param in self.params:
+                if param.grad is not None:
+                    param.grad = param.grad.detach()*clip_coef
         ### END YOUR SOLUTION
 
 
