@@ -657,8 +657,6 @@ _Python_INCLUDE_DIR:INTERNAL=/root/anaconda3/envs/hw4_env/include/python3.10
 //Python Properties
 _Python_INTERPRETER_PROPERTIES:INTERNAL=Python;3;10;12;64;;cpython-310-x86_64-linux-gnu;abi3;/root/anaconda3/envs/hw4_env/lib/python3.10;/root/anaconda3/envs/hw4_env/lib/python3.10;/root/anaconda3/envs/hw4_env/lib/python3.10/site-packages;/root/anaconda3/envs/hw4_env/lib/python3.10/site-packages
 _Python_INTERPRETER_SIGNATURE:INTERNAL=8b5cdc7c35afcb0c4365df8b52220842
-//Interpreter reason failure
-_Python_Interpreter_REASON_FAILURE:INTERNAL=
 //Path to a library.
 _Python_LIBRARY_RELEASE:INTERNAL=/root/anaconda3/envs/hw4_env/lib/libpython3.10.so
 //NumPy reason failure
