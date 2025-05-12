@@ -173,6 +173,8 @@ def test_setitem_ewise(params, device):
     end_ptr = A._handle.ptr()
     assert start_ptr == end_ptr, "you should modify in-place"
     compare_strides(_A, A)
+    A_numpy = A.numpy().flatten()
+    _A_flatten = _A.flatten()
     np.testing.assert_allclose(A.numpy(), _A, atol=1e-5, rtol=1e-5)
 
 
